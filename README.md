@@ -23,9 +23,9 @@ In a time series, **order is everything**:
 Each step is one small piece of work. Tick it off when it is done.
 
 - [x] **Step 1 – Project setup.** Folders, dependencies, a function that loads the data
-      with real dates. *(You are here.)*
-- [ ] **Step 2 – First look.** One store, one product family: plot sales over time,
-      spot trend, weekly pattern and holidays.
+      with real dates.
+- [x] **Step 2 – First look.** One store, one product family: plot sales over time,
+      spot trend, weekly pattern and holidays. → [01_first_look](notebooks/01_first_look.ipynb)
 - [ ] **Step 3 – Baselines.** "Same as last week", "average of last 4 weeks".
       Every model later must beat these.
 - [ ] **Step 4 – Time-based validation.** Split by date, choose the metric (RMSLE),
@@ -36,6 +36,20 @@ Each step is one small piece of work. Tick it off when it is done.
 - [ ] **Step 7 – Gradient boosting model.** LightGBM on all stores and families together.
 - [ ] **Step 8 – Extra data.** Oil prices, promotions, transactions: do they help?
 - [ ] **Step 9 – Kaggle submission and write-up.**
+
+## Key findings so far
+
+From one series (store 44, `GROCERY I`, the biggest store and family):
+
+- **Gaps:** Christmas Day is missing from the file every year (stores closed); 1 January has zero sales.
+- **Trend:** average daily sales grew about 30% from 2013 to 2017.
+- **Weekly pattern:** weekends sell about 50% more than weekdays. This is the strongest pattern.
+- **Calendar:** December sells about 40% more than other months; the first days of the month
+  (after payday) about 25% more than the last days.
+- **Earthquake:** after the 16 April 2016 earthquake, sales tripled for three days.
+- **Zeros:** 31% of all rows are zero; a quarter of the 1,782 series sell nothing on most days.
+
+![Weekly pattern](images/weekday_pattern.png)
 
 ## Project structure
 
