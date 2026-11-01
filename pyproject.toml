@@ -1,0 +1,7 @@
+# Project settings read by tools. For now only pytest uses it.
+
+[tool.pytest.ini_options]
+# Let tests write `from src.features import ...`: put the project root on Python's search path.
+pythonpath = ["."]
+# Where to look for tests.
+testpaths = ["tests"]

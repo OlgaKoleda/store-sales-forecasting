@@ -30,7 +30,8 @@ Each step is one small piece of work. Tick it off when it is done.
       on the last 16 days; a forecast that leaks the future. → [02_baselines](notebooks/02_baselines.ipynb)
 - [x] **Step 4 – Backtesting.** Score on 8 periods instead of one; a new "level + weekday" rule;
       store closures and back-to-school; first Kaggle submission. → [03_backtesting](notebooks/03_backtesting.ipynb)
-- [ ] **Step 5 – Features from the calendar.** Day of week, month, paydays, holidays.
+- [x] **Step 5 – Features from the calendar.** Day of week, month, paydays, holidays, and the
+      first unit tests. → [04_calendar_features](notebooks/04_calendar_features.ipynb)
 - [ ] **Step 6 – Lag features.** Sales 16+ days ago, rolling means — and why the 16-day
       gap matters (we forecast 16 days ahead).
 - [ ] **Step 7 – Gradient boosting model.** LightGBM on all stores and families together.
@@ -94,6 +95,18 @@ The Kaggle score is better than the backtest average. The 8 windows ranged from 
 the hard April windows (Easter); the test period behaved more like the easy June and July windows.
 A backtest gives a range, not an exact prediction.
 
+Calendar effects across all stores (each day compared with the same weekday in the 4 weeks around it):
+
+- **Payday cycle:** the 1st sells about 23% above normal, the 25th about 10% below, the 31st about 6% above.
+  The end-of-month payday matters much more than the mid-month one.
+- **Holidays:** the days around Christmas and New Year sell about 26% more; national days off only about 8% more;
+  local holidays show no clear effect.
+- **The holidays file has traps:** transferred holidays are normal days on their original date, and local and
+  regional holidays only apply to stores in that city or state.
+- **The Kaggle test period has no national holiday**, but it covers a full payday cycle.
+
+![Payday cycle](images/payday_cycle.png)
+
 ![Weekly pattern](images/weekday_pattern.png)
 
 ## Project structure
@@ -106,8 +119,11 @@ A backtest gives a range, not an exact prediction.
 │   ├── data.py       # Loading the Kaggle files
 │   ├── metrics.py    # RMSLE, the competition metric
 │   ├── baselines.py  # Simple forecasting rules, all with the same signature
-│   └── validation.py # Backtesting: cutoffs, splits, scoring every rule on every window
+│   ├── validation.py # Backtesting: cutoffs, splits, scoring every rule on every window
+│   └── features.py   # Calendar and holiday features
+├── tests/         # Unit tests for src/ (run with `pytest`)
 ├── submissions/   # Kaggle prediction files
+├── pyproject.toml # Settings for pytest
 ├── requirements.txt
 └── README.md
 ```
@@ -133,6 +149,10 @@ but code copied between notebooks drifts apart and breaks. Anything used more th
    python -m src.data
    ```
 4. In VS Code or Jupyter, choose the `store-sales` environment as the notebook kernel.
+5. Run the tests (they don't need the Kaggle data):
+   ```bash
+   pytest
+   ```
 
 **macOS and LightGBM:** if `import lightgbm` fails with `Library not loaded: libomp.dylib`,
 install the OpenMP library it needs into the environment:
@@ -142,4 +162,4 @@ conda install -n store-sales -c conda-forge llvm-openmp
 
 ## Tools
 
-Python · pandas · NumPy · Matplotlib · scikit-learn · LightGBM · Jupyter
+Python · pandas · NumPy · Matplotlib · scikit-learn · LightGBM · pytest · Jupyter

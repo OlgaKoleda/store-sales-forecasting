@@ -7,3 +7,4 @@ matplotlib>=3.7      # charts
 scikit-learn>=1.2    # metrics and helpers (we write our own time-based split later)
 lightgbm>=4.0        # gradient boosting; fast on millions of rows, which we will have
 jupyter              # notebooks
+pytest               # runs the tests in tests/ (type `pytest` in the project folder)
