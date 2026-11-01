@@ -26,10 +26,10 @@ Each step is one small piece of work. Tick it off when it is done.
       with real dates.
 - [x] **Step 2 – First look.** One store, one product family: plot sales over time,
       spot trend, weekly pattern and holidays. → [01_first_look](notebooks/01_first_look.ipynb)
-- [ ] **Step 3 – Baselines.** "Same as last week", "average of last 4 weeks".
-      Every model later must beat these.
-- [ ] **Step 4 – Time-based validation.** Split by date, choose the metric (RMSLE),
-      write it once in `src/` and reuse it.
+- [x] **Step 3 – Baselines and the metric.** RMSLE in `src/metrics.py`; five simple rules scored
+      on the last 16 days; a forecast that leaks the future. → [02_baselines](notebooks/02_baselines.ipynb)
+- [ ] **Step 4 – Backtesting.** Score on several 16-day periods instead of one, so a ranking
+      can't be luck. Try combining a smooth level with a weekday adjustment.
 - [ ] **Step 5 – Features from the calendar.** Day of week, month, paydays, holidays.
 - [ ] **Step 6 – Lag features.** Sales 16+ days ago, rolling means — and why the 16-day
       gap matters (we forecast 16 days ahead).
@@ -49,6 +49,23 @@ From one series (store 44, `GROCERY I`, the biggest store and family):
 - **Earthquake:** after the 16 April 2016 earthquake, sales tripled for three days.
 - **Zeros:** 31% of all rows are zero; a quarter of the 1,782 series sell nothing on most days.
 
+Baselines on the last 16 days of train (2017-07-31 to 2017-08-15):
+
+| Baseline | RMSLE |
+|---|---|
+| Zero | 4.42 |
+| Last day, repeated | 0.659 |
+| Same weekday last week | 0.617 |
+| Mean of last 4 same weekdays | 0.531 |
+| **Mean of last 14 days** | **0.519** |
+
+- **Averages beat single days:** most series are small and noisy, and the metric (RMSLE) gives
+  small series a lot of weight.
+- **"Yesterday's sales" leaks the future** for a 16-day forecast. It scores 0.546, and still loses
+  to the honest 14-day mean.
+- **The winner changes by weekday:** weekday rules win on weekends. One 16-day window is not enough
+  to pick a winner (step 4).
+
 ![Weekly pattern](images/weekday_pattern.png)
 
 ## Project structure
@@ -58,7 +75,8 @@ From one series (store 44, `GROCERY I`, the biggest store and family):
 ├── images/        # Charts saved by the notebooks (used in this README)
 ├── notebooks/     # Numbered notebooks, run in order: exploring and explaining
 ├── src/           # Reusable Python code, imported by the notebooks
-│   └── data.py    # Loading the Kaggle files
+│   ├── data.py    # Loading the Kaggle files
+│   └── metrics.py # RMSLE, the competition metric
 ├── submissions/   # Kaggle prediction files
 ├── requirements.txt
 └── README.md
@@ -84,6 +102,13 @@ but code copied between notebooks drifts apart and breaks. Anything used more th
    ```bash
    python -m src.data
    ```
+4. In VS Code or Jupyter, choose the `store-sales` environment as the notebook kernel.
+
+**macOS and LightGBM:** if `import lightgbm` fails with `Library not loaded: libomp.dylib`,
+install the OpenMP library it needs into the environment:
+```bash
+conda install -n store-sales -c conda-forge llvm-openmp
+```
 
 ## Tools
 
