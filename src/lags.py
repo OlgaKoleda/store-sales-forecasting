@@ -30,6 +30,26 @@ def full_calendar(wide, end=None):
     return wide.reindex(pd.date_range(wide.index.min(), end, name="date"))
 
 
+def closed_store_days(wide):
+    """True for each (date, series) whose store sold nothing at all that day, in any family.
+
+    A whole store at zero means the store was closed (New Year's Day, a renovation, not open yet),
+    not that nobody wanted to buy anything. Like Christmas, such a day says nothing about demand.
+
+    Why this matters (found after submission v2, notebook 07): stores 18 and 25 were closed for
+    weeks in August 2016. Stored as 0, those days made `lag_364` say "this store sold nothing a year
+    ago" for the whole Kaggle test period, and the model forecast those stores 3-5 times too low.
+    """
+    store_totals = wide.T.groupby(level="store_nbr", observed=True).sum(min_count=1).T  # dates x stores
+    closed = store_totals == 0
+    # Repeat each store's column once per family, in the same order as wide's columns.
+    return pd.DataFrame(
+        closed[wide.columns.get_level_values("store_nbr")].to_numpy(),
+        index=wide.index,
+        columns=wide.columns,
+    )
+
+
 def lag_features(wide, end=None, horizon=HORIZON):
     """Lag features for every (date, series), as a long table indexed by (date, store_nbr, family).
 
@@ -38,8 +58,12 @@ def lag_features(wide, end=None, horizon=HORIZON):
     Every feature is built from `known` or from shifts of at least `horizon` days:
     known = log sales shifted by 16 days, i.e. on each date, the value from 16 days before.
     A rolling mean of `known` over 14 rows is then the average of days 16..29 before the date.
+
+    Days on which a store was closed become NaN ("unknown") before anything is computed,
+    so averages skip them instead of counting them as zero demand.
     """
-    log_sales = np.log1p(full_calendar(wide, end))
+    open_sales = wide.mask(closed_store_days(wide))
+    log_sales = np.log1p(full_calendar(open_sales, end))
     known = log_sales.shift(horizon)
 
     def same_weekday_mean(weeks):

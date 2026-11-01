@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from src.features import calendar_features, holiday_features
-from src.lags import lag_features
+from src.lags import closed_store_days, full_calendar, lag_features
 
 
 def build_table(train, stores, holidays, end=None):
@@ -33,7 +33,10 @@ def build_table(train, stores, holidays, end=None):
     for column in flags.columns:
         table[column] = flags[column].reindex(keys).to_numpy()
 
-    # Target: log1p(sales), the scale of the metric. NaN where unknown (Christmas, test period).
-    sales = train.set_index(["date", "store_nbr", "family"])["sales"]
-    table["target"] = np.log1p(sales.reindex(table.index)).to_numpy()
+    # Target: log1p(sales), the scale of the metric. NaN where unknown (Christmas, test period),
+    # and also on days the store was closed: a closure can't be forecast from sales history,
+    # so those rows would only teach the model "sometimes a store sells nothing for no reason".
+    # full_calendar gives the same dates and columns, in the same order, as the rows of `table`.
+    open_sales = full_calendar(wide.mask(closed_store_days(wide)), end)
+    table["target"] = np.log1p(open_sales.to_numpy().ravel())
     return table

@@ -46,6 +46,22 @@ def test_missing_day_becomes_nan_not_zero():
     assert filled.loc["2017-01-10"].isna().all()
 
 
+def test_closed_store_day_is_unknown_not_zero():
+    # Two stores with two families each. On one day, store 1 sells nothing at all (closed),
+    # while store 2 sells nothing in one family only (an ordinary zero: the store was open).
+    wide = make_wide()
+    wide[(1, "MILK")] = 5.0
+    wide[(2, "BREAD")] = 5.0
+    wide = wide.sort_index(axis=1)
+    closed_day = wide.index[40]
+    wide.loc[closed_day, [(1, "BREAD"), (1, "MILK"), (2, "MILK")]] = 0
+
+    features = lag_features(wide)
+    later = closed_day + pd.Timedelta(days=16)
+    assert np.isnan(features.loc[(later, 1, "BREAD"), "lag_16"])      # closed store: unknown
+    assert features.loc[(later, 2, "MILK"), "lag_16"] == 0             # open store, no sales: a real zero
+
+
 def test_features_exist_for_16_future_days():
     wide = make_wide()
     end = wide.index[-1] + pd.Timedelta(days=16)

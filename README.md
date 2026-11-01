@@ -91,7 +91,21 @@ Backtest on 8 back-to-back 16-day windows (10 April to 15 August 2017):
 | Kaggle submission | Method | Backtest RMSLE (8 windows) | Kaggle score |
 |---|---|---|---|
 | v1 | Level + weekday | 0.487 | **0.41457** |
-| v2 | LightGBM | 0.475 | *to fill in* |
+| v2 | LightGBM | 0.475 | 0.44253 (worse than v1!) |
+| v3 | LightGBM, closed store days treated as unknown | 0.443 | **0.40358** (best so far) |
+
+**What went wrong with v2.** The backtest said the model was better than the rule, Kaggle said it was worse.
+Comparing the v1 and v2 forecasts showed that half of their difference came from two stores, 18 and 25, which
+were closed for weeks in August 2016. Those closed days were stored as sales of 0, so for the whole test period
+`lag_364` ("same time last year") told the model these stores sell nothing, and v2 forecast them 3–5 times too low.
+None of the 8 backtest windows looks back at those weeks, so the backtest couldn't catch it.
+
+**The fix:** a day on which a whole store sold nothing is a closed day. Like Christmas, it is now "unknown" (NaN)
+in the features, and not used as a training target (`closed_store_days` in `src/lags.py`, with a test).
+It also fixed store 52: its days before opening were "closed" too, so the window after its opening improved from
+0.696 to 0.451. Backtest mean: 0.4745 → 0.4430.
+
+*Notebook 06 shows the results from before this fix.*
 
 The Kaggle score is better than the backtest average. The 8 windows ranged from 0.406 to 0.626 and include
 the hard April windows; the test period behaved more like the easy June and July windows.
