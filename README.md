@@ -28,8 +28,8 @@ Each step is one small piece of work. Tick it off when it is done.
       spot trend, weekly pattern and holidays. → [01_first_look](notebooks/01_first_look.ipynb)
 - [x] **Step 3 – Baselines and the metric.** RMSLE in `src/metrics.py`; five simple rules scored
       on the last 16 days; a forecast that leaks the future. → [02_baselines](notebooks/02_baselines.ipynb)
-- [ ] **Step 4 – Backtesting.** Score on several 16-day periods instead of one, so a ranking
-      can't be luck. Try combining a smooth level with a weekday adjustment.
+- [x] **Step 4 – Backtesting.** Score on 8 periods instead of one; a new "level + weekday" rule;
+      store closures and back-to-school; first Kaggle submission. → [03_backtesting](notebooks/03_backtesting.ipynb)
 - [ ] **Step 5 – Features from the calendar.** Day of week, month, paydays, holidays.
 - [ ] **Step 6 – Lag features.** Sales 16+ days ago, rolling means — and why the 16-day
       gap matters (we forecast 16 days ahead).
@@ -66,6 +66,30 @@ Baselines on the last 16 days of train (2017-07-31 to 2017-08-15):
 - **The winner changes by weekday:** weekday rules win on weekends. One 16-day window is not enough
   to pick a winner (step 4).
 
+Backtest on 8 back-to-back 16-day windows (10 April to 15 August 2017):
+
+| Rule | Mean RMSLE | Windows won |
+|---|---|---|
+| Last day | 0.637 | 0 |
+| Same weekday last week | 0.575 | 0 |
+| Mean of last 14 days | 0.511 | 2 |
+| Mean of last 4 same weekdays | 0.506 | 1 |
+| **Level + weekday** (14-day level on the log scale + 8-week weekday profile) | **0.487** | **5** |
+
+- **One window would have picked the wrong rule:** the 14-day mean wins the newest window, but level + weekday
+  beats it in 6 of 8 windows.
+- **Windows differ more than rules do,** so rules are compared window by window, not only by their averages.
+- **Two store closures** (stores 18 and 25, August 2016) wrecked the same-season window a year earlier.
+  Without them, level + weekday is again the best.
+- **Back-to-school came a month early in 2017.** School supplies peaked around 8 August at over 40 times their
+  June level, against early-to-mid September in 2015 and 2016. The test period comes right after the peak.
+
+![Backtest](images/backtest_scores.png)
+
+| Kaggle submission | Method | Backtest RMSLE | Public | Private |
+|---|---|---|---|---|
+| v1 | Level + weekday | 0.487 | *to fill in* | *to fill in* |
+
 ![Weekly pattern](images/weekday_pattern.png)
 
 ## Project structure
@@ -75,8 +99,10 @@ Baselines on the last 16 days of train (2017-07-31 to 2017-08-15):
 ├── images/        # Charts saved by the notebooks (used in this README)
 ├── notebooks/     # Numbered notebooks, run in order: exploring and explaining
 ├── src/           # Reusable Python code, imported by the notebooks
-│   ├── data.py    # Loading the Kaggle files
-│   └── metrics.py # RMSLE, the competition metric
+│   ├── data.py       # Loading the Kaggle files
+│   ├── metrics.py    # RMSLE, the competition metric
+│   ├── baselines.py  # Simple forecasting rules, all with the same signature
+│   └── validation.py # Backtesting: cutoffs, splits, scoring every rule on every window
 ├── submissions/   # Kaggle prediction files
 ├── requirements.txt
 └── README.md
