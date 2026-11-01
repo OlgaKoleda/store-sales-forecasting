@@ -38,7 +38,8 @@ Each step is one small piece of work. Tick it off when it is done.
       without peeking, backtest, submission v2. → [06_lightgbm](notebooks/06_lightgbm.ipynb)
 - [x] **Step 7b – Debugging submission v2.** Why Kaggle disagreed with the backtest: two hypotheses, three
       experiments, a fix, submission v3. → [07_debugging_v2](notebooks/07_debugging_v2.ipynb)
-- [ ] **Step 8 – Extra data.** Oil prices, promotions, transactions: do they help?
+- [x] **Step 8 – Extra data.** Promotions help in every window; store info and oil don't. Submission v4.
+      → [08_extra_data](notebooks/08_extra_data.ipynb)
 - [ ] **Step 9 – Kaggle submission and write-up.**
 
 ## Key findings so far
@@ -95,6 +96,8 @@ Backtest on 8 back-to-back 16-day windows (10 April to 15 August 2017):
 | v1 | Level + weekday | 0.487 | **0.41457** |
 | v2 | LightGBM | 0.475 | 0.44253 (worse than v1!) |
 | v3 | LightGBM, closed store days treated as unknown | 0.443 | **0.40358** (best so far) |
+| v4 | v3 + promotions | 0.419 | 0.41332 (worse than v3) |
+| v4b | *Diagnostic only:* v4, with v3's forecasts for 162 rows on 16 August | — | **0.38560** |
 
 **What went wrong with v2** ([07_debugging_v2](notebooks/07_debugging_v2.ipynb)). The backtest said the model was
 better than the rule, Kaggle said it was worse. Comparing the v1 and v2 forecasts showed that half of their difference
@@ -110,6 +113,28 @@ It also fixed store 52, whose pre-opening months had taught the model "store 52 
 opening improved from 0.696 to 0.451. Backtest mean: 0.4745 → 0.4430.
 
 *Notebook 06 shows the results from before this fix; notebook 07 the results after it.*
+
+**Extra data** (notebook 08), each group added one at a time and compared window by window:
+
+| Backtest (8 windows) | Mean RMSLE | Windows better than the row above |
+|---|---|---|
+| No extras (v3 model) | 0.4430 | — |
+| **+ promotions** | **0.4194** | **8 of 8** |
+| + store type and cluster | 0.4200 | 4 of 8 |
+| + oil price | 0.4189 | 4 of 8 |
+
+- **Promotions are known in advance** (they're in the test file), so the forecast day's own promotions can be used.
+  **Future oil prices are not**, even though `oil.csv` contains them, so oil is only used 16+ days old.
+- **Promotions win every window; store info and oil win half**, which is what noise looks like. Only promotions are kept.
+- **Kaggle disagreed again (v4: 0.41332, worse than v3).** Comparing v3 and v4 showed that 162 rows, 0.6% of the
+  test, caused 59% of their difference: on 16 August, **every** store has a promotion in LAWN AND GARDEN, LINGERIE and
+  SCHOOL AND OFFICE SUPPLIES, which never happened in training (at most 52–67% of stores). The model extrapolated and
+  forecast 3–30 times more than v3. A diagnostic submission, v4 with only those rows taken from v3, scored **0.38560**:
+  those rows cost about 0.028, and promotions help everywhere else (−0.018 against v3, close to the backtest's −0.024).
+  v4b isn't a real model (the rows were chosen by looking at the leaderboard); a proper fix needs a rule decided from
+  the training data alone.
+- **On open days, promotion days sell about 19% more.** Including closed days (no promotion, no sales) inflated this
+  to 36%, and to +1,400% for GROCERY I: the closed-day problem from v2, in an analysis this time.
 
 The Kaggle score is better than the backtest average. The 8 windows ranged from 0.406 to 0.626 and include
 the hard April windows; the test period behaved more like the easy June and July windows.
@@ -170,6 +195,7 @@ LightGBM, one model for all 1,782 series, trained on `log1p(sales)` from 2015 on
 │   ├── validation.py # Backtesting: cutoffs, splits, scoring every rule on every window
 │   ├── features.py   # Calendar and holiday features
 │   ├── lags.py       # Lag features from past sales (all at least 16 days old)
+│   ├── extra.py      # Extra data: promotions, store info, oil prices
 │   ├── dataset.py    # Joins all features and the target into one table
 │   └── model.py      # LightGBM: training with safe early stopping, forecasting, backtesting
 ├── tests/         # Unit tests for src/ (run with `pytest`)

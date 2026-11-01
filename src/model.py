@@ -13,7 +13,8 @@ from src.metrics import rmsle
 from src.validation import HORIZON
 
 # Columns the model may use. "target" is what it predicts; "date" is only used to split by time.
-CATEGORICAL = ["store_nbr", "family"]
+# Categories, not numbers: store 44 isn't "bigger" than store 2, cluster 13 isn't "more" than cluster 1.
+CATEGORICAL = ["store_nbr", "family", "store_type", "cluster"]
 
 PARAMS = {
     "objective": "regression",  # squared error, on log1p(sales) -> the RMSLE
@@ -33,10 +34,11 @@ EARLY_STOPPING = 100
 
 
 def prepare(table):
-    """Move date/store/family out of the index into columns; mark store and family as categories."""
+    """Move date/store/family out of the index into columns; mark the categorical columns as categories."""
     data = table.reset_index()
     for column in CATEGORICAL:
-        data[column] = data[column].astype("category")
+        if column in data.columns:  # store_type and cluster only exist with the "store" extras
+            data[column] = data[column].astype("category")
     return data
 
 

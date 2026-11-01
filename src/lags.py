@@ -93,10 +93,10 @@ def lag_features(wide, end=None, horizon=HORIZON, mask_closed=True):
         # How many of those 28 days had zero sales: dead series, closed stores, not yet open
         "zero_days_28": (known == 0).astype(float).where(known.notna()).rolling(28, min_periods=1).sum(),
     }
-    return _to_long(features)
+    return to_long(features)
 
 
-def _to_long(features):
+def to_long(features):
     """Turn {name: wide table} into one long table: one row per (date, series), one column per feature.
 
     Each wide table is flattened row by row (all series of the first date, then the second date, ...),
