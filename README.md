@@ -36,6 +36,8 @@ Each step is one small piece of work. Tick it off when it is done.
       feature table for the model. → [05_lag_features](notebooks/05_lag_features.ipynb)
 - [x] **Step 7 – Gradient boosting model.** LightGBM on all stores and families together, early stopping
       without peeking, backtest, submission v2. → [06_lightgbm](notebooks/06_lightgbm.ipynb)
+- [x] **Step 7b – Debugging submission v2.** Why Kaggle disagreed with the backtest: two hypotheses, three
+      experiments, a fix, submission v3. → [07_debugging_v2](notebooks/07_debugging_v2.ipynb)
 - [ ] **Step 8 – Extra data.** Oil prices, promotions, transactions: do they help?
 - [ ] **Step 9 – Kaggle submission and write-up.**
 
@@ -94,18 +96,20 @@ Backtest on 8 back-to-back 16-day windows (10 April to 15 August 2017):
 | v2 | LightGBM | 0.475 | 0.44253 (worse than v1!) |
 | v3 | LightGBM, closed store days treated as unknown | 0.443 | **0.40358** (best so far) |
 
-**What went wrong with v2.** The backtest said the model was better than the rule, Kaggle said it was worse.
-Comparing the v1 and v2 forecasts showed that half of their difference came from two stores, 18 and 25, which
-were closed for weeks in August 2016. Those closed days were stored as sales of 0, so for the whole test period
-`lag_364` ("same time last year") told the model these stores sell nothing, and v2 forecast them 3–5 times too low.
-None of the 8 backtest windows looks back at those weeks, so the backtest couldn't catch it.
+**What went wrong with v2** ([07_debugging_v2](notebooks/07_debugging_v2.ipynb)). The backtest said the model was
+better than the rule, Kaggle said it was worse. Comparing the v1 and v2 forecasts showed that half of their difference
+came from two stores, 18 and 25, which v2 forecast 3–5 times too low. Both were closed for weeks from mid-August 2016,
+and those closed days were training rows with sales 0. The model learned "these stores sell nothing from mid-August"
+through the store and calendar columns, and repeated it a year later. The first suspect, `lag_364`, fitted the dates
+perfectly, but an experiment ruled it out: removing the closed days as training targets alone fixes the forecasts;
+fixing only the features doesn't. None of the 8 backtest windows reaches mid-August, so the backtest couldn't catch it.
 
-**The fix:** a day on which a whole store sold nothing is a closed day. Like Christmas, it is now "unknown" (NaN)
-in the features, and not used as a training target (`closed_store_days` in `src/lags.py`, with a test).
-It also fixed store 52: its days before opening were "closed" too, so the window after its opening improved from
-0.696 to 0.451. Backtest mean: 0.4745 → 0.4430.
+**The fix:** a day on which a whole store sold nothing is a closed day. It is not used as a training target, and, like
+Christmas, it is "unknown" (NaN) in the features (`closed_store_days` in `src/lags.py`, with a test).
+It also fixed store 52, whose pre-opening months had taught the model "store 52 sells nothing": the window after its
+opening improved from 0.696 to 0.451. Backtest mean: 0.4745 → 0.4430.
 
-*Notebook 06 shows the results from before this fix.*
+*Notebook 06 shows the results from before this fix; notebook 07 the results after it.*
 
 The Kaggle score is better than the backtest average. The 8 windows ranged from 0.406 to 0.626 and include
 the hard April windows; the test period behaved more like the easy June and July windows.

@@ -11,15 +11,20 @@ from src.features import calendar_features, holiday_features
 from src.lags import closed_store_days, full_calendar, lag_features
 
 
-def build_table(train, stores, holidays, end=None):
+def build_table(train, stores, holidays, end=None, mask_closed_features=True, drop_closed_targets=True):
     """The full feature table, from the first date of train up to `end`.
 
     `end` defaults to the last date of train. Pass the last test date to also get rows for the
     test period: their features are complete (all lags are >= 16 days old, and the test period is
     16 days long), but their target is NaN, because those sales are what we must forecast.
+
+    The two switches control how days a store was closed are handled (see notebook 07).
+    Both True is the fix; setting them to False reproduces the behaviour before it:
+    - mask_closed_features: closed days are "unknown" (NaN) in the lag features;
+    - drop_closed_targets: closed days are not used as training targets.
     """
     wide = train.pivot_table(index="date", columns=["store_nbr", "family"], values="sales", observed=True)
-    table = lag_features(wide, end=end)
+    table = lag_features(wide, end=end, mask_closed=mask_closed_features)
     dates = table.index.get_level_values("date")
 
     # Calendar: the same for every series on a date -> look it up by date.
@@ -34,9 +39,11 @@ def build_table(train, stores, holidays, end=None):
         table[column] = flags[column].reindex(keys).to_numpy()
 
     # Target: log1p(sales), the scale of the metric. NaN where unknown (Christmas, test period),
-    # and also on days the store was closed: a closure can't be forecast from sales history,
-    # so those rows would only teach the model "sometimes a store sells nothing for no reason".
+    # and also on days the store was closed: a closure can't be forecast from sales history.
+    # Kept as zeros, those rows taught the model "this store sells nothing on these dates",
+    # and it repeated that a year later: the cause of the bad v2 submission (notebook 07).
     # full_calendar gives the same dates and columns, in the same order, as the rows of `table`.
-    open_sales = full_calendar(wide.mask(closed_store_days(wide)), end)
-    table["target"] = np.log1p(open_sales.to_numpy().ravel())
+    if drop_closed_targets:
+        wide = wide.mask(closed_store_days(wide))
+    table["target"] = np.log1p(full_calendar(wide, end).to_numpy().ravel())
     return table

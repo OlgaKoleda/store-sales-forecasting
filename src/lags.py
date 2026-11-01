@@ -36,9 +36,11 @@ def closed_store_days(wide):
     A whole store at zero means the store was closed (New Year's Day, a renovation, not open yet),
     not that nobody wanted to buy anything. Like Christmas, such a day says nothing about demand.
 
-    Why this matters (found after submission v2, notebook 07): stores 18 and 25 were closed for
-    weeks in August 2016. Stored as 0, those days made `lag_364` say "this store sold nothing a year
-    ago" for the whole Kaggle test period, and the model forecast those stores 3-5 times too low.
+    Why this matters (found after submission v2, see notebook 07): stores 18 and 25 were closed for
+    weeks from mid-August 2016. Kept as training rows with sales 0, those days taught the model
+    "store 25 sells nothing from 22 August" (through the store and calendar columns), and a year
+    later it forecast those stores 3-5 times too low. src/dataset.py therefore drops closed days
+    as targets; here they also become NaN in the features.
     """
     store_totals = wide.T.groupby(level="store_nbr", observed=True).sum(min_count=1).T  # dates x stores
     closed = store_totals == 0
@@ -50,7 +52,7 @@ def closed_store_days(wide):
     )
 
 
-def lag_features(wide, end=None, horizon=HORIZON):
+def lag_features(wide, end=None, horizon=HORIZON, mask_closed=True):
     """Lag features for every (date, series), as a long table indexed by (date, store_nbr, family).
 
     `wide`: sales, rows = dates, columns = (store_nbr, family). See notebook 02.
@@ -59,11 +61,13 @@ def lag_features(wide, end=None, horizon=HORIZON):
     known = log sales shifted by 16 days, i.e. on each date, the value from 16 days before.
     A rolling mean of `known` over 14 rows is then the average of days 16..29 before the date.
 
-    Days on which a store was closed become NaN ("unknown") before anything is computed,
-    so averages skip them instead of counting them as zero demand.
+    mask_closed: days on which a store was closed become NaN ("unknown") before anything is
+    computed, so averages skip them instead of counting them as zero demand. False reproduces
+    the behaviour before the fix (used in notebook 07 to show what went wrong).
     """
-    open_sales = wide.mask(closed_store_days(wide))
-    log_sales = np.log1p(full_calendar(open_sales, end))
+    if mask_closed:
+        wide = wide.mask(closed_store_days(wide))
+    log_sales = np.log1p(full_calendar(wide, end))
     known = log_sales.shift(horizon)
 
     def same_weekday_mean(weeks):
