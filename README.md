@@ -32,8 +32,8 @@ Each step is one small piece of work. Tick it off when it is done.
       store closures and back-to-school; first Kaggle submission. → [03_backtesting](notebooks/03_backtesting.ipynb)
 - [x] **Step 5 – Features from the calendar.** Day of week, month, paydays, holidays, and the
       first unit tests. → [04_calendar_features](notebooks/04_calendar_features.ipynb)
-- [ ] **Step 6 – Lag features.** Sales 16+ days ago, rolling means — and why the 16-day
-      gap matters (we forecast 16 days ahead).
+- [x] **Step 6 – Lag features.** Sales 16+ days ago, rolling means, a leakage test, and the full
+      feature table for the model. → [05_lag_features](notebooks/05_lag_features.ipynb)
 - [ ] **Step 7 – Gradient boosting model.** LightGBM on all stores and families together.
 - [ ] **Step 8 – Extra data.** Oil prices, promotions, transactions: do they help?
 - [ ] **Step 9 – Kaggle submission and write-up.**
@@ -107,6 +107,16 @@ Calendar effects across all stores (each day compared with the same weekday in t
 
 ![Payday cycle](images/payday_cycle.png)
 
+Lag features (built from past sales):
+
+- **Every lag is at least 16 days old**, so one feature table works for all 16 forecast days and can't
+  leak the future. A test plants absurd values in the last 15 days and checks no feature changes.
+- **This simplicity costs about 0.04 RMSLE** for our best rule (0.487 → 0.528 in the backtest), and much
+  more when something just changed: store 52 opened on 20 April 2017, and 16-day-old data still saw it closed.
+- **Averages are the best single features:** the 14-day mean of 16-day-old data (0.622) beats even yesterday's
+  sales (0.716). Same weekday 3 weeks ago beats a different weekday 16 days ago.
+- **The full table:** 3 million rows × 23 columns (lags, calendar, holidays, target), complete for the test period.
+
 ![Weekly pattern](images/weekday_pattern.png)
 
 ## Project structure
@@ -120,7 +130,9 @@ Calendar effects across all stores (each day compared with the same weekday in t
 │   ├── metrics.py    # RMSLE, the competition metric
 │   ├── baselines.py  # Simple forecasting rules, all with the same signature
 │   ├── validation.py # Backtesting: cutoffs, splits, scoring every rule on every window
-│   └── features.py   # Calendar and holiday features
+│   ├── features.py   # Calendar and holiday features
+│   ├── lags.py       # Lag features from past sales (all at least 16 days old)
+│   └── dataset.py    # Joins all features and the target into one table
 ├── tests/         # Unit tests for src/ (run with `pytest`)
 ├── submissions/   # Kaggle prediction files
 ├── pyproject.toml # Settings for pytest

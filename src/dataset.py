@@ -1,0 +1,39 @@
+"""Put all features together into one model-ready table.
+
+One row per (date, store, family). Columns: lag features (src/lags.py), calendar features and
+holiday features (src/features.py), and the target, log1p(sales), when it is known.
+"""
+
+import numpy as np
+import pandas as pd
+
+from src.features import calendar_features, holiday_features
+from src.lags import lag_features
+
+
+def build_table(train, stores, holidays, end=None):
+    """The full feature table, from the first date of train up to `end`.
+
+    `end` defaults to the last date of train. Pass the last test date to also get rows for the
+    test period: their features are complete (all lags are >= 16 days old, and the test period is
+    16 days long), but their target is NaN, because those sales are what we must forecast.
+    """
+    wide = train.pivot_table(index="date", columns=["store_nbr", "family"], values="sales", observed=True)
+    table = lag_features(wide, end=end)
+    dates = table.index.get_level_values("date")
+
+    # Calendar: the same for every series on a date -> look it up by date.
+    calendar = calendar_features(dates.unique())
+    for column in calendar.columns:
+        table[column] = calendar[column].reindex(dates).to_numpy()
+
+    # Holidays: depend on the date and the store -> look them up by (date, store).
+    flags = holiday_features(dates.unique(), stores, holidays)
+    keys = pd.MultiIndex.from_arrays([dates, table.index.get_level_values("store_nbr")])
+    for column in flags.columns:
+        table[column] = flags[column].reindex(keys).to_numpy()
+
+    # Target: log1p(sales), the scale of the metric. NaN where unknown (Christmas, test period).
+    sales = train.set_index(["date", "store_nbr", "family"])["sales"]
+    table["target"] = np.log1p(sales.reindex(table.index)).to_numpy()
+    return table
