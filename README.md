@@ -34,7 +34,8 @@ Each step is one small piece of work. Tick it off when it is done.
       first unit tests. → [04_calendar_features](notebooks/04_calendar_features.ipynb)
 - [x] **Step 6 – Lag features.** Sales 16+ days ago, rolling means, a leakage test, and the full
       feature table for the model. → [05_lag_features](notebooks/05_lag_features.ipynb)
-- [ ] **Step 7 – Gradient boosting model.** LightGBM on all stores and families together.
+- [x] **Step 7 – Gradient boosting model.** LightGBM on all stores and families together, early stopping
+      without peeking, backtest, submission v2. → [06_lightgbm](notebooks/06_lightgbm.ipynb)
 - [ ] **Step 8 – Extra data.** Oil prices, promotions, transactions: do they help?
 - [ ] **Step 9 – Kaggle submission and write-up.**
 
@@ -90,10 +91,12 @@ Backtest on 8 back-to-back 16-day windows (10 April to 15 August 2017):
 | Kaggle submission | Method | Backtest RMSLE (8 windows) | Kaggle score |
 |---|---|---|---|
 | v1 | Level + weekday | 0.487 | **0.41457** |
+| v2 | LightGBM | 0.475 | *to fill in* |
 
 The Kaggle score is better than the backtest average. The 8 windows ranged from 0.406 to 0.626 and include
-the hard April windows (Easter); the test period behaved more like the easy June and July windows.
-A backtest gives a range, not an exact prediction.
+the hard April windows; the test period behaved more like the easy June and July windows.
+A backtest gives a range, not an exact prediction. (Notebook 06 later showed that the April windows were hard
+mostly because store 52 opened on 20 April 2017, not because of Easter.)
 
 Calendar effects across all stores (each day compared with the same weekday in the 4 weeks around it):
 
@@ -117,6 +120,23 @@ Lag features (built from past sales):
   sales (0.716). Same weekday 3 weeks ago beats a different weekday 16 days ago.
 - **The full table:** 3 million rows × 23 columns (lags, calendar, holidays, target), complete for the test period.
 
+LightGBM, one model for all 1,782 series, trained on `log1p(sales)` from 2015 on:
+
+| Backtest (8 windows) | Mean RMSLE | Windows won vs. rule |
+|---|---|---|
+| Level + weekday (best rule) | 0.487 | — |
+| **LightGBM** | **0.475** | 7 of 8 |
+| LightGBM, scored without store 52 | — | **8 of 8**, by ~0.03 |
+
+- **The number of trees is chosen without peeking:** early stopping on the 16 days *before* each cutoff,
+  then retraining on everything.
+- **One new store explains most of the gap:** store 52 opened on 20 April 2017. With 16-day-old features the model
+  still sees it closed. Without store 52 the model wins every window, and the "hard" April windows are normal.
+- **The rule is still slightly better on day 1** (fresher data); the model's lead grows to about 0.035 by the second week.
+- **Dropping the earthquake weeks from training changes nothing** (0.4745 vs. 0.4754), so the data stays.
+
+![Model vs rule](images/model_vs_rule.png)
+
 ![Weekly pattern](images/weekday_pattern.png)
 
 ## Project structure
@@ -132,7 +152,8 @@ Lag features (built from past sales):
 │   ├── validation.py # Backtesting: cutoffs, splits, scoring every rule on every window
 │   ├── features.py   # Calendar and holiday features
 │   ├── lags.py       # Lag features from past sales (all at least 16 days old)
-│   └── dataset.py    # Joins all features and the target into one table
+│   ├── dataset.py    # Joins all features and the target into one table
+│   └── model.py      # LightGBM: training with safe early stopping, forecasting, backtesting
 ├── tests/         # Unit tests for src/ (run with `pytest`)
 ├── submissions/   # Kaggle prediction files
 ├── pyproject.toml # Settings for pytest
