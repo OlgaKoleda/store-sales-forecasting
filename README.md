@@ -1,0 +1,76 @@
+# Store Sales Forecasting
+
+Forecasting daily sales for 54 Ecuadorian grocery stores (Corporación Favorita), 16 days ahead,
+using the [Kaggle "Store Sales – Time Series Forecasting" competition](https://www.kaggle.com/competitions/store-sales-time-series-forecasting).
+
+This is a **learning project**: every step is small, and the code is commented to explain
+*why* each choice is made, not only *what* it does.
+
+## Why this project is different from the previous ones
+
+In credit risk, house prices and Titanic, every row was independent: the order of the rows did
+not matter, so we could shuffle them and use ordinary cross-validation.
+
+In a time series, **order is everything**:
+
+- Yesterday's sales help predict today's sales (this is called *autocorrelation*).
+- We must never train on the future and test on the past. That would be *leakage*: the model
+  would look great in validation and fail in real life.
+- So validation must always be "train on the past, test on the period right after it".
+
+## Roadmap
+
+Each step is one small piece of work. Tick it off when it is done.
+
+- [x] **Step 1 – Project setup.** Folders, dependencies, a function that loads the data
+      with real dates. *(You are here.)*
+- [ ] **Step 2 – First look.** One store, one product family: plot sales over time,
+      spot trend, weekly pattern and holidays.
+- [ ] **Step 3 – Baselines.** "Same as last week", "average of last 4 weeks".
+      Every model later must beat these.
+- [ ] **Step 4 – Time-based validation.** Split by date, choose the metric (RMSLE),
+      write it once in `src/` and reuse it.
+- [ ] **Step 5 – Features from the calendar.** Day of week, month, paydays, holidays.
+- [ ] **Step 6 – Lag features.** Sales 16+ days ago, rolling means — and why the 16-day
+      gap matters (we forecast 16 days ahead).
+- [ ] **Step 7 – Gradient boosting model.** LightGBM on all stores and families together.
+- [ ] **Step 8 – Extra data.** Oil prices, promotions, transactions: do they help?
+- [ ] **Step 9 – Kaggle submission and write-up.**
+
+## Project structure
+
+```
+├── data/          # Kaggle files (not committed – see "How to run")
+├── images/        # Charts saved by the notebooks (used in this README)
+├── notebooks/     # Numbered notebooks, run in order: exploring and explaining
+├── src/           # Reusable Python code, imported by the notebooks
+│   └── data.py    # Loading the Kaggle files
+├── submissions/   # Kaggle prediction files
+├── requirements.txt
+└── README.md
+```
+
+**Why split `src/` and `notebooks/`?** Notebooks are great for exploring and showing results,
+but code copied between notebooks drifts apart and breaks. Anything used more than once
+(loading data, the metric, feature code) lives in `src/` and is imported. One place to fix bugs.
+
+## How to run
+
+1. Join the competition on Kaggle (click "Join Competition" and accept the rules), then
+   download the files from the [Data tab](https://www.kaggle.com/competitions/store-sales-time-series-forecasting/data)
+   and unzip them into `data/`. You should have `train.csv`, `test.csv`, `stores.csv`,
+   `oil.csv`, `holidays_events.csv`, `transactions.csv` and `sample_submission.csv`.
+2. Create a separate environment for this project and install the dependencies:
+   ```bash
+   conda create -n store-sales python=3.11
+   conda activate store-sales
+   pip install -r requirements.txt
+   ```
+3. Check that the data loads:
+   ```bash
+   python -m src.data
+   ```
+
+## Tools
+
+Python · pandas · NumPy · Matplotlib · scikit-learn · LightGBM · Jupyter

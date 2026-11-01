@@ -1,0 +1,17 @@
+# Files git should never track.
+
+# Kaggle data: large, and the competition rules say not to redistribute it.
+# The .gitkeep file keeps the empty data/ folder in the repo.
+data/*
+!data/.gitkeep
+
+# Python / Jupyter caches: created automatically, different on every machine
+__pycache__/
+.ipynb_checkpoints/
+.pytest_cache/
+.venv/
+venv/
+
+# macOS / editors
+.DS_Store
+.vscode/
