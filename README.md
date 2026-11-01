@@ -86,9 +86,13 @@ Backtest on 8 back-to-back 16-day windows (10 April to 15 August 2017):
 
 ![Backtest](images/backtest_scores.png)
 
-| Kaggle submission | Method | Backtest RMSLE | Public | Private |
-|---|---|---|---|---|
-| v1 | Level + weekday | 0.487 | *to fill in* | *to fill in* |
+| Kaggle submission | Method | Backtest RMSLE (8 windows) | Kaggle score |
+|---|---|---|---|
+| v1 | Level + weekday | 0.487 | **0.41457** |
+
+The Kaggle score is better than the backtest average. The 8 windows ranged from 0.406 to 0.626 and include
+the hard April windows (Easter); the test period behaved more like the easy June and July windows.
+A backtest gives a range, not an exact prediction.
 
 ![Weekly pattern](images/weekday_pattern.png)
 
