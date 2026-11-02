@@ -42,9 +42,27 @@ Each step is one small piece of work. Tick it off when it is done.
       → [08_extra_data](notebooks/08_extra_data.ipynb)
 - [x] **Step 8b – Unseen promotions.** Why v4 scored worse, and a rule from training data that neutralises promotion
       situations the model never saw. Submission v5. → [09_unseen_promotions](notebooks/09_unseen_promotions.ipynb)
-- [ ] **Step 9 – Kaggle submission and write-up.**
+- [x] **Step 9 – Summary.** What worked, what didn't, the two disagreements with Kaggle, and what we'd try next.
+      → [10_summary](notebooks/10_summary.ipynb)
 
-## Key findings so far
+## Results
+
+**Final submission: v5, Kaggle RMSLE 0.38988**, 6% better than the best simple rule (v1, 0.41457).
+
+![Every submission](images/journey.png)
+
+- **What worked:** a strong baseline first, backtesting on 8 windows, every lag at least 16 days old,
+  treating closed days as unknown instead of zero, and promotions.
+- **What didn't:** store type and cluster, and oil prices, each won only half the backtest windows, which is what
+  noise looks like. Dropping the earthquake weeks from training changed nothing.
+- **Kaggle disagreed with the backtest twice (v2, v4).** Both times the cause was something no backtest window
+  contained: stores closed in mid-August, and a promotion day unlike any in training. Both were found the same way:
+  compare with a trusted submission, look where the difference concentrates, test one hypothesis.
+- **Next ideas:** fresher features for the first forecast days, handling new stores, more stable early stopping,
+  and checking every test input against training before submitting. Details in
+  [10_summary](notebooks/10_summary.ipynb).
+
+## Key findings, step by step
 
 From one series (store 44, `GROCERY I`, the biggest store and family):
 
@@ -92,6 +110,11 @@ Backtest on 8 back-to-back 16-day windows (10 April to 15 August 2017):
   June level, against early-to-mid September in 2015 and 2016. The test period comes right after the peak.
 
 ![Backtest](images/backtest_scores.png)
+
+The Kaggle score is better than the backtest average. The 8 windows ranged from 0.406 to 0.626 and include
+the hard April windows; the test period behaved more like the easy June and July windows.
+A backtest gives a range, not an exact prediction. (Notebook 06 later showed that the April windows were hard
+mostly because store 52 opened on 20 April 2017, not because of Easter.)
 
 | Kaggle submission | Method | Backtest RMSLE (8 windows) | Kaggle score |
 |---|---|---|---|
@@ -147,11 +170,6 @@ opening improved from 0.696 to 0.451. Backtest mean: 0.4745 → 0.4430.
   on the leaderboard.
 - **On open days, promotion days sell about 19% more.** Including closed days (no promotion, no sales) inflated this
   to 36%, and to +1,400% for GROCERY I: the closed-day problem from v2, in an analysis this time.
-
-The Kaggle score is better than the backtest average. The 8 windows ranged from 0.406 to 0.626 and include
-the hard April windows; the test period behaved more like the easy June and July windows.
-A backtest gives a range, not an exact prediction. (Notebook 06 later showed that the April windows were hard
-mostly because store 52 opened on 20 April 2017, not because of Easter.)
 
 Calendar effects across all stores (each day compared with the same weekday in the 4 weeks around it):
 
