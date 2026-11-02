@@ -40,6 +40,8 @@ Each step is one small piece of work. Tick it off when it is done.
       experiments, a fix, submission v3. → [07_debugging_v2](notebooks/07_debugging_v2.ipynb)
 - [x] **Step 8 – Extra data.** Promotions help in every window; store info and oil don't. Submission v4.
       → [08_extra_data](notebooks/08_extra_data.ipynb)
+- [x] **Step 8b – Unseen promotions.** Why v4 scored worse, and a rule from training data that neutralises promotion
+      situations the model never saw. Submission v5. → [09_unseen_promotions](notebooks/09_unseen_promotions.ipynb)
 - [ ] **Step 9 – Kaggle submission and write-up.**
 
 ## Key findings so far
@@ -95,9 +97,10 @@ Backtest on 8 back-to-back 16-day windows (10 April to 15 August 2017):
 |---|---|---|---|
 | v1 | Level + weekday | 0.487 | **0.41457** |
 | v2 | LightGBM | 0.475 | 0.44253 (worse than v1!) |
-| v3 | LightGBM, closed store days treated as unknown | 0.443 | **0.40358** (best so far) |
+| v3 | LightGBM, closed store days treated as unknown | 0.443 | **0.40358** |
 | v4 | v3 + promotions | 0.419 | 0.41332 (worse than v3) |
 | v4b | *Diagnostic only:* v4, with v3's forecasts for 162 rows on 16 August | — | **0.38560** |
+| v5 | v4 + guard against unseen promotion situations | 0.422 | **0.38988** (best real model) |
 
 **What went wrong with v2** ([07_debugging_v2](notebooks/07_debugging_v2.ipynb)). The backtest said the model was
 better than the rule, Kaggle said it was worse. Comparing the v1 and v2 forecasts showed that half of their difference
@@ -133,6 +136,15 @@ opening improved from 0.696 to 0.451. Backtest mean: 0.4745 → 0.4430.
   those rows cost about 0.028, and promotions help everywhere else (−0.018 against v3, close to the backtest's −0.024).
   v4b isn't a real model (the rows were chosen by looking at the leaderboard); a proper fix needs a rule decided from
   the training data alone.
+- **The rule** (`guard_unseen_promotions`, notebook 09): per family, the highest share of stores ever on promotion in
+  training; above it, promotion features are set to "as usual". It finds exactly the 16 August cases, plus BEAUTY, which
+  the manual v4b missed. **In the backtest it costs a little** (0.4194 → 0.4219): promotions grew over time, so a new
+  record is usually normal growth. The guard is insurance: validation can only measure its premium, because no backtest
+  window contains the rare event it protects against. Keeping it was a judgement informed by the leaderboard.
+- **v5 scored 0.38988**: 0.014 better than v3 and 0.023 better than v4, so the rule recovers most of the diagnostic's
+  gain without choosing rows by hand. It is 0.004 behind v4b, which differs in two ways (v5 also changes BEAUTY, and
+  forecasts the guarded rows with the model rather than copying v3). We don't probe which one: that would be tuning
+  on the leaderboard.
 - **On open days, promotion days sell about 19% more.** Including closed days (no promotion, no sales) inflated this
   to 36%, and to +1,400% for GROCERY I: the closed-day problem from v2, in an analysis this time.
 

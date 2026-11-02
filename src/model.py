@@ -94,19 +94,56 @@ def forecast(model, data, dates):
     return long.unstack(["store_nbr", "family"])
 
 
-def backtest_model(data, wide, cutoffs, exclude=None):
+def guard_unseen_promotions(data, cutoff):
+    """Neutralise promotion features where the promotion situation was never seen in training.
+
+    Tree models can't extrapolate: faced with a feature combination outside everything they were
+    trained on, they guess. Submission v4 showed how badly (notebook 09): on 16 August 2017 EVERY
+    store had a promotion in a few families, more than ever before, and the model forecast 3-30
+    times too much.
+
+    The rule, decided from the training data only:
+    - breadth = share of stores with a promotion, per (date, family);
+    - for each family, the highest breadth in the training period (TRAIN_START up to the cutoff);
+    - after the cutoff, a (date, family) above that maximum is "unseen". On those rows the promotion
+      features are set to "promotions as usual": promo = its recent level, promo_vs_recent = 0.
+
+    Returns the guarded copy of `data` and the flagged (date, family) breadths.
+    """
+    cutoff = pd.Timestamp(cutoff)
+    promoted = data["promo"] > 0  # promo is log1p(onpromotion): > 0 means at least one item on promotion
+    breadth = promoted.groupby([data["date"], data["family"]], observed=True).mean()
+    dates = breadth.index.get_level_values("date")
+
+    seen_max = breadth[(dates >= TRAIN_START) & (dates <= cutoff)].groupby(level="family", observed=True).max()
+    future = breadth[dates > cutoff]
+    limit = seen_max.reindex(future.index.get_level_values("family")).to_numpy()
+    unseen = future[future.to_numpy() > limit]
+
+    flagged = pd.MultiIndex.from_frame(data[["date", "family"]]).isin(unseen.index)
+    guarded = data.copy()
+    guarded.loc[flagged, "promo"] = data.loc[flagged, "promo"] - data.loc[flagged, "promo_vs_recent"]
+    guarded.loc[flagged, "promo_vs_recent"] = 0.0
+    return guarded, unseen
+
+
+def backtest_model(data, wide, cutoffs, exclude=None, guard=False):
     """Like src.validation.backtest, for the model: train at each cutoff, score the next 16 days.
 
-    Returns one row per window (labelled by its first forecast day) with the RMSLE and the trees used,
-    plus a dict of the forecasts, for further analysis.
+    guard=True applies guard_unseen_promotions to the forecast rows (training is unchanged).
+    Returns one row per window (labelled by its first forecast day) with the RMSLE, the trees used
+    and, with the guard, how many (date, family) pairs it flagged; plus a dict of the forecasts.
     """
     rows, forecasts = {}, {}
     for cutoff in cutoffs:
         dates = pd.date_range(cutoff + pd.Timedelta(days=1), periods=HORIZON, name="date")
         model, n_trees = fit(data, cutoff, exclude=exclude)
-        predicted = forecast(model, data, dates)
+        forecast_data, unseen = guard_unseen_promotions(data, cutoff) if guard else (data, [])
+        predicted = forecast(model, forecast_data, dates)
         actual = wide.loc[dates, predicted.columns]
         label = dates[0].strftime("%Y-%m-%d")
         rows[label] = {"RMSLE": rmsle(actual, predicted), "trees": n_trees}
+        if guard:  # count only the flagged (date, family) pairs inside this 16-day window
+            rows[label]["flagged"] = int(unseen.index.get_level_values("date").isin(dates).sum())
         forecasts[label] = predicted
     return pd.DataFrame(rows).T.rename_axis("window starts"), forecasts
